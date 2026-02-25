@@ -3,7 +3,7 @@ import EmblaCarousel from 'embla-carousel-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useRedditPosts } from '@/hooks/useRedditPosts';
 import type { MediaPost } from '@/hooks/useRedditPosts';
-import { proxyUrl } from '@/src/lib/proxy';
+import { proxyUrl } from '@/lib/proxy';
 import { Download, Share2, Volume2, VolumeX, Loader2, SearchX, ArrowUp, MoveUpLeft, MoveDownRight } from 'lucide-react';
 
 const fmt = (n: number) =>

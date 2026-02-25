@@ -6,8 +6,8 @@
 export const BASE = process.env.PROXY_BASE ?? 'http://localhost:3001'
 
 // Known-stable redgifs ID (verified working, large enough for range tests)
-export const REDGIFS_ID = 'WiryGiddyWaterbuck'
-export const REDGIFS_SIZE = 12091579  // bytes, confirmed via HEAD
+export const REDGIFS_ID = 'SaneSpottedIncatern'
+export const REDGIFS_SIZE = 4697468  // bytes, confirmed via HEAD
 
 // Fetch a fresh preview.redd.it URL from Reddit (signed URLs expire)
 export async function fetchFreshPreviewUrl(): Promise<string> {

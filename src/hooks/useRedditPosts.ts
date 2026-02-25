@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/useAppStore';
-import { proxyUrl } from '@/src/lib/proxy';
+import { proxyUrl } from '@/lib/proxy';
 
 export interface MediaPost {
   id: string;

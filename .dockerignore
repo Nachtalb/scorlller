@@ -1,5 +1,12 @@
-.next
-node_modules
-.git
-media_cache
-.claude
+node_modules/
+.git/
+dist/
+.github/
+plans/
+tests/
+*.md
+!README.md
+.claude/
+media_cache/
+docker-compose.yml
+*.tsbuildinfo
