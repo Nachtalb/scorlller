@@ -5,6 +5,9 @@ import { useRedditPosts } from '@/hooks/useRedditPosts';
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
+import Masonry from 'react-masonry-css';
+
+const BREAKPOINTS = { default: 5, 1280: 4, 1024: 3, 640: 2, 0: 1 };
 
 export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) => void }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRedditPosts();
@@ -65,13 +68,13 @@ export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) 
 
   return (
     <div className="pt-20 pb-24 px-4 overflow-y-auto h-screen">
-      <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
+      <Masonry breakpointCols={BREAKPOINTS} className="masonry-grid" columnClassName="masonry-grid_column">
         {posts.map((post, idx) => (
           <motion.div
             key={post.id}
             whileHover={{ scale: 1.02 }}
             onClick={() => onOpenReel(idx)}
-            className="break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-zinc-900 cursor-pointer relative"
+            className="rounded-2xl overflow-hidden bg-zinc-900 cursor-pointer relative"
           >
             {post.type === 'video' ? (
               <video
@@ -94,7 +97,7 @@ export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) 
             </div>
           </motion.div>
         ))}
-      </div>
+      </Masonry>
 
       <div ref={sentinelRef} className="flex justify-center mt-8 pb-4">
         {isFetchingNextPage && <Loader2 size={24} className="animate-spin text-zinc-400" />}
