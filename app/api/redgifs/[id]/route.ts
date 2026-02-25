@@ -22,10 +22,15 @@ export async function GET(
   const cacheDir = process.env.MEDIA_CACHE_DIR;
 
   if (cacheDir) {
-    mkdirSync(cacheDir, { recursive: true });
-    const cachePath = join(cacheDir, `${id}.mp4`);
+    // Resolve to absolute path once to avoid CWD-relative race conditions
+    const absCacheDir = cacheDir.startsWith('/') ? cacheDir : join(process.cwd(), cacheDir);
+    mkdirSync(absCacheDir, { recursive: true });
+    const cachePath = join(absCacheDir, `${id}.mp4`);
     const rangeHeader = req.headers.get('range');
     const rangeStr = rangeHeader ? ` [${rangeHeader}]` : '';
+
+    // Treat Range: bytes=0- as a full request (Android Chrome sends this for all videos)
+    const isFullRangeRequest = rangeHeader && /^bytes=0-\s*$/.test(rangeHeader.trim());
 
     // Cache hit — stream from disk with range support
     if (existsSync(cachePath)) {
@@ -59,9 +64,9 @@ export async function GET(
       });
     }
 
-    // Cache miss with range request — stream from upstream directly, skip caching
-    if (rangeHeader) {
-      log.miss(`redgifs ${id}${rangeStr} — range miss, proxying without cache`);
+    // Cache miss with a real seek (non-zero range start) — proxy without caching
+    if (rangeHeader && !isFullRangeRequest) {
+      log.miss(`redgifs ${id}${rangeStr} — seek miss, proxying without cache`);
       const upstream = await fetch(`https://media.redgifs.com/${id}.mp4`, {
         headers: { ...UPSTREAM_HEADERS, Range: rangeHeader },
       });
@@ -77,8 +82,9 @@ export async function GET(
       return new NextResponse(upstream.body, { status: upstream.status, headers });
     }
 
-    // Cache miss, full request — tee: serve client immediately + write to disk in background
-    log.miss(`redgifs ${id} — fetching upstream + caching to disk`);
+    // Cache miss — full request (or bytes=0- from Android) — tee: serve + cache
+    // Always fetch the full file (strip bytes=0- range header) so we can tee a clean stream
+    log.miss(`redgifs ${id}${isFullRangeRequest ? rangeStr : ''} — fetching upstream + caching to disk`);
     const upstream = await fetch(`https://media.redgifs.com/${id}.mp4`, { headers: UPSTREAM_HEADERS });
     if (!upstream.ok || !upstream.body) {
       log.error(`redgifs ${id} — upstream ${upstream.status}`);
