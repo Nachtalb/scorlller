@@ -20,28 +20,40 @@ export interface MediaPost {
   src: string;
 }
 
+const redgifsIdFromUrl = (url: string): string | null => {
+  const m = url.match(/redgifs\.com\/(?:watch|ifr)\/([a-zA-Z]+)/i);
+  return m ? m[1] : null;
+};
+
 const isMediaPost = (p: any): boolean => {
   const u = p.url || '';
   return !!(p.is_video || p.post_hint === 'image' || p.post_hint === 'hosted:video' ||
-    /\.(jpg|jpeg|png|gif|webp|mp4|webm)$/i.test(u) || u.includes('v.redd.it') || u.includes('i.redd.it'));
+    /\.(jpg|jpeg|png|gif|webp|mp4|webm)$/i.test(u) || u.includes('v.redd.it') || u.includes('i.redd.it') ||
+    redgifsIdFromUrl(u));
 };
 
 const getMediaSrc = (p: any): {type: 'image' | 'video'; src: string} => {
-  // 1. Reddit video (v.redd.it)
+  // 1. Redgifs embed
+  const rgId = redgifsIdFromUrl(p.url || '');
+  if (rgId) {
+    return { type: 'video', src: `/api/redgifs/${rgId}` };
+  }
+
+  // 2. Reddit video (v.redd.it)
   if (p.is_video && p.media?.reddit_video?.fallback_url) {
     return { type: 'video', src: p.media.reddit_video.fallback_url };
   }
 
-  // 2. Prefer MP4 variant for "GIF" posts (huge improvement)
+  // 3. Prefer MP4 variant for "GIF" posts (huge improvement)
   const mp4Variant = p.preview?.images?.[0]?.variants?.mp4?.source?.url;
   if (mp4Variant) {
     return { type: 'video', src: mp4Variant.replace(/&amp;/g, '&') };
   }
 
-  // 3. Fallback to image (real GIFs or static)
-  return { 
-    type: 'image', 
-    src: p.url || p.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&') || '' 
+  // 4. Fallback to image (real GIFs or static)
+  return {
+    type: 'image',
+    src: p.url || p.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&') || ''
   };
 };
 
