@@ -1,30 +1,26 @@
-'use client';
-
 import { Star, Search, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useState, useEffect } from 'react';
 
 export default function TopBar() {
-  const { 
-    currentSub, 
-    setCurrentSub, 
-    toggleStar, 
-    starred, 
-    sort, 
-    setSort, 
-    timePeriod, 
+  const {
+    currentSub,
+    setCurrentSub,
+    toggleStar,
+    starred,
+    sort,
+    setSort,
+    timePeriod,
     setTimePeriod,
-    setBottomTab 
+    setBottomTab
   } = useAppStore();
 
   const [inputValue, setInputValue] = useState(currentSub);
   const [validation, setValidation] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
   const [error, setError] = useState('');
-  const [mounted, setMounted] = useState(false);
 
   const isStarred = starred.includes(currentSub.toLowerCase());
 
-  useEffect(() => { setMounted(true); }, []);
   useEffect(() => { setInputValue(currentSub); }, [currentSub]);
 
   useEffect(() => {
@@ -36,7 +32,7 @@ export default function TopBar() {
     const timer = setTimeout(async () => {
       const clean = inputValue.toLowerCase().replace(/^r\//, '').trim();
       try {
-        const res = await fetch(`/api/reddit/r/${clean}.json?limit=1`);
+        const res = await fetch(`https://www.reddit.com/r/${clean}.json?limit=1`);
         setValidation(res.ok ? 'valid' : 'invalid');
       } catch { setValidation('invalid'); }
     }, 400);
@@ -48,8 +44,8 @@ export default function TopBar() {
     if (!clean) return;
 
     setValidation('checking');
-    const res = await fetch(`/api/reddit/r/${clean}.json?limit=1`);
-    
+    const res = await fetch(`https://www.reddit.com/r/${clean}.json?limit=1`);
+
     if (res.ok) {
       setCurrentSub(inputValue);
       setError('');
@@ -68,12 +64,12 @@ export default function TopBar() {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 px-4 py-3 flex items-center gap-3" suppressHydrationWarning>
+      <div className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 px-4 py-3 flex items-center gap-3">
         <div className="relative flex-1">
           <input
             id="subreddit-input"
             type="text"
-            value={mounted ? inputValue : currentSub}
+            value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             className="bg-zinc-900 border border-zinc-700 rounded-full px-4 py-1 w-full text-sm focus:outline-none focus:border-blue-500"
@@ -91,24 +87,36 @@ export default function TopBar() {
           <Search size={20} />
         </button>
 
-        <button title={isStarred ? 'Unstar subreddit' : 'Star subreddit'} onClick={() => toggleStar(currentSub)} className={`p-2 ${isStarred ? 'text-yellow-400' : 'text-zinc-400'}`}>
+        <button
+          title={isStarred ? 'Unstar subreddit' : 'Star subreddit'}
+          onClick={() => toggleStar(currentSub)}
+          className={`p-2 ${isStarred ? 'text-yellow-400' : 'text-zinc-400'}`}
+        >
           <Star size={20} fill={isStarred ? 'currentColor' : 'none'} />
         </button>
 
-        <select title="Sort" value={sort} onChange={e => setSort(e.target.value as any)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm">
-          {['hot', 'new', 'top', 'rising'].map(s => <option key={s} value={s}>{s}</option>)}
+        <select
+          title="Sort"
+          value={sort}
+          onChange={e => setSort(e.target.value as Parameters<typeof setSort>[0])}
+          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm"
+        >
+          {(['hot', 'new', 'top', 'rising'] as const).map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         {sort === 'top' && (
-          <select title="Time period" value={timePeriod} onChange={e => setTimePeriod(e.target.value as any)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm">
-            {['day', 'week', 'month', 'year', 'all'].map(p => <option key={p} value={p}>{p}</option>)}
+          <select
+            title="Time period"
+            value={timePeriod}
+            onChange={e => setTimePeriod(e.target.value as Parameters<typeof setTimePeriod>[0])}
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm"
+          >
+            {(['day', 'week', 'month', 'year', 'all'] as const).map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
-        <span
-          title="Build version"
-          className="text-[10px] text-zinc-700 font-mono select-all shrink-0"
-        >
-          {process.env.NEXT_PUBLIC_COMMIT_HASH}
+
+        <span title="Build version" className="text-[10px] text-zinc-700 font-mono select-all shrink-0">
+          {import.meta.env.VITE_COMMIT_HASH}
         </span>
       </div>
 

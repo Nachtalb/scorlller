@@ -1,5 +1,3 @@
-'use client';
-
 import { useAppStore } from '@/stores/useAppStore';
 import { useRedditPosts } from '@/hooks/useRedditPosts';
 import { motion } from 'framer-motion';

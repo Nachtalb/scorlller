@@ -1,9 +1,9 @@
-'use client';
-
 import { useEffect, useRef, useCallback, useState } from 'react';
 import EmblaCarousel from 'embla-carousel-react';
 import { useAppStore } from '@/stores/useAppStore';
-import { useRedditPosts, MediaPost } from '@/hooks/useRedditPosts';
+import { useRedditPosts } from '@/hooks/useRedditPosts';
+import type { MediaPost } from '@/hooks/useRedditPosts';
+import { proxyUrl } from '@/src/lib/proxy';
 import { Download, Share2, Volume2, VolumeX, Loader2, SearchX, ArrowUp, MoveUpLeft, MoveDownRight } from 'lucide-react';
 
 const fmt = (n: number) =>
@@ -17,7 +17,7 @@ interface Props {
   setCurrentIndex: (i: number) => void;
 }
 
-const WHEEL_THRESHOLD = 60; // px accumulated before snapping to next/prev
+const WHEEL_THRESHOLD = 60;
 
 export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props) {
   const [emblaRef, emblaApi] = EmblaCarousel({
@@ -35,14 +35,10 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
   const { updateLastPosition, currentSub, setMuted, actionPosition, setActionPosition } = useAppStore();
 
-  // PWA (standalone) allows unmuted autoplay; regular browser tabs require muted
-  const [isPWA] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(display-mode: standalone)').matches ||
-           !!(navigator as any).standalone;
-  });
+  const [isPWA] = useState<boolean>(() =>
+    window.matchMedia('(display-mode: standalone)').matches || !!(navigator as any).standalone
+  );
 
-  // sessionMuted: PWA follows persisted preference (default unmuted); browser always starts muted
   const [sessionMuted, setSessionMuted] = useState<boolean>(() =>
     isPWA ? useAppStore.getState().muted : true
   );
@@ -52,14 +48,12 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
 
   const currentAfter = data?.pages[data.pages.length - 1]?.after || null;
 
-  // Auto-load first page when opening Reel
   useEffect(() => {
     if (posts.length === 0 && hasNextPage && !isFetchingNextPage && !isLoading) {
       fetchNextPage();
     }
   }, [posts.length, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
 
-  // Play current video, respecting session mute preference
   useEffect(() => {
     const v = videoRefs.current[currentIndex];
     if (v) {
@@ -95,7 +89,6 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     return () => { emblaApi.off('select', handleSelect); };
   }, [emblaApi, handleSelect]);
 
-  // Mouse wheel navigation
   useEffect(() => {
     if (!emblaApi) return;
     const onWheel = (e: WheelEvent) => {
@@ -109,7 +102,6 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
         wheelAccum.current = 0;
         if (e.deltaY > 0) emblaApi.scrollNext();
         else emblaApi.scrollPrev();
-        // unlock after animation settles
         setTimeout(() => { wheelLocked.current = false; }, 600);
       }
     };
@@ -129,7 +121,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     }
   };
 
-  const handleSave = async (post: MediaPost) => {
+  const handleSave = useCallback(async (post: MediaPost) => {
     if (downloading.has(post.id)) return;
     setDownloading(prev => new Set(prev).add(post.id));
 
@@ -139,12 +131,12 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
       if (match) ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
     }
 
-    // Route through server proxy so the download is same-origin
-    // (cross-origin fetch + blob URL is the only reliable way to trigger a real download)
-    const proxySrc = post.src.startsWith('/') ? post.src : `/api/download?url=${encodeURIComponent(post.src)}`;
+    // Use proxyUrl to rewrite preview.redd.it / external-preview.redd.it through Caddy.
+    // i.redd.it, v.redd.it, /proxy/redgifs/* etc. pass through unchanged.
+    const downloadSrc = proxyUrl(post.src);
 
     try {
-      const response = await fetch(proxySrc, { cache: 'no-store' });
+      const response = await fetch(downloadSrc, { cache: 'no-store' });
       if (!response.ok) throw new Error(`${response.status}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -156,14 +148,12 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch {
-      // Last resort: open in new tab so user can long-press save
-      window.open(proxySrc, '_blank');
+      window.open(downloadSrc, '_blank');
     } finally {
       setDownloading(prev => { const s = new Set(prev); s.delete(post.id); return s; });
     }
-  };
+  }, [downloading]);
 
-  // Keyboard navigation: ↑/↓, j/k, Ctrl+S / d for download
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -243,7 +233,6 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                 )}
               </div>
 
-              {/* Action buttons — top-left floating or bottom-right overlay */}
               {actionPosition === 'top-left' && idx === currentIndex && (
                 <div className="absolute top-16 left-3 z-50 flex flex-col gap-1 bg-black/60 backdrop-blur-md border border-zinc-700/50 rounded-2xl p-2">
                   <div className="flex flex-col items-center gap-1 px-2 py-1.5">

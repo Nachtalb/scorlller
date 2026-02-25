@@ -1,7 +1,6 @@
-'use client';
-
 import { Home, LayoutGrid, Star } from 'lucide-react';
-import { useAppStore, BottomTab } from '@/stores/useAppStore';
+import { useAppStore } from '@/stores/useAppStore';
+import type { BottomTab } from '@/stores/useAppStore';
 
 export default function BottomNav() {
   const { bottomTab, setBottomTab } = useAppStore();

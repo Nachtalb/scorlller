@@ -1,7 +1,6 @@
-'use client';
-
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/stores/useAppStore';
+import { proxyUrl } from '@/src/lib/proxy';
 
 export interface MediaPost {
   id: string;
@@ -12,58 +11,72 @@ export interface MediaPost {
   thumbnail?: string;
   is_video: boolean;
   post_hint?: string;
-  media?: any;
-  preview?: any;
+  media?: unknown;
+  preview?: unknown;
   score: number;
   num_comments: number;
   type: 'image' | 'video';
   src: string;
 }
 
-const isMediaPost = (p: any): boolean => {
-  const u = p.url || '';
-  const isRedgifs = p.media?.type === 'redgifs.com' || p.secure_media?.type === 'redgifs.com';
+const isMediaPost = (p: Record<string, unknown>): boolean => {
+  const u = (p.url as string) || '';
+  const media = p.media as Record<string, unknown> | undefined;
+  const secure_media = p.secure_media as Record<string, unknown> | undefined;
+  const isRedgifs = media?.type === 'redgifs.com' || secure_media?.type === 'redgifs.com';
   return !!(p.is_video || p.post_hint === 'image' || p.post_hint === 'hosted:video' ||
     /\.(jpg|jpeg|png|gif|webp|mp4|webm)$/i.test(u) || u.includes('v.redd.it') || u.includes('i.redd.it') ||
     isRedgifs);
 };
 
-const getMediaSrc = (p: any): {type: 'image' | 'video'; src: string} => {
-  // 1. Redgifs — extract PascalCase ID from oEmbed thumbnail URL, proxy through our server
+const getMediaSrc = (p: Record<string, unknown>): { type: 'image' | 'video'; src: string } => {
+  const media = p.media as Record<string, unknown> | undefined;
+  const secure_media = p.secure_media as Record<string, unknown> | undefined;
+  const preview = p.preview as Record<string, unknown> | undefined;
+
+  // 1. Redgifs — extract PascalCase ID from oEmbed thumbnail URL, proxy through Caddy
   // thumbnail_url: https://media.redgifs.com/WiryGiddyWaterbuck-poster.jpg  -> id: WiryGiddyWaterbuck
-  // proxy route:   /api/redgifs/WiryGiddyWaterbuck  (sets correct Referer, streams bytes)
-  const rgOembed = (p.secure_media?.type === 'redgifs.com' && p.secure_media?.oembed)
-                || (p.media?.type === 'redgifs.com' && p.media?.oembed);
-  if (rgOembed?.thumbnail_url) {
-    const m = (rgOembed.thumbnail_url as string).match(/\/([^/]+?)(?:-(?:poster|mobile|large|small))?\.[a-z]+$/i);
+  // proxy route:   /proxy/redgifs/WiryGiddyWaterbuck.mp4  (sets correct Referer, cached by Caddy)
+  const rgOembed = (secure_media?.type === 'redgifs.com' && (secure_media?.oembed as Record<string, unknown>))
+                || (media?.type === 'redgifs.com' && (media?.oembed as Record<string, unknown>));
+  if (rgOembed && (rgOembed as Record<string, unknown>).thumbnail_url) {
+    const thumbUrl = ((rgOembed as Record<string, unknown>).thumbnail_url as string);
+    const m = thumbUrl.match(/\/([^/]+?)(?:-(?:poster|mobile|large|small))?\.[a-z]+$/i);
     if (m?.[1]) {
-      return { type: 'video', src: `/api/redgifs/${m[1]}` };
+      return { type: 'video', src: `/proxy/redgifs/${m[1]}.mp4` };
     }
   }
 
-  // 2. Reddit video (v.redd.it) — check both media and secure_media; is_video flag is unreliable on cross-posts
-  const redditVideo = p.media?.reddit_video || p.secure_media?.reddit_video;
-  if (redditVideo?.fallback_url) {
-    return { type: 'video', src: redditVideo.fallback_url };
+  // 2. Reddit video (v.redd.it)
+  const redditVideo = (media as Record<string, unknown> | undefined)?.reddit_video
+                   || (secure_media as Record<string, unknown> | undefined)?.reddit_video;
+  if (redditVideo && (redditVideo as Record<string, unknown>).fallback_url) {
+    return { type: 'video', src: (redditVideo as Record<string, unknown>).fallback_url as string };
   }
 
-  // 3. Prefer MP4 variant for "GIF" posts (huge improvement)
-  const mp4Variant = p.preview?.images?.[0]?.variants?.mp4?.source?.url;
-  if (mp4Variant) {
-    return { type: 'video', src: mp4Variant.replace(/&amp;/g, '&') };
+  // 3. Prefer MP4 variant for "GIF" posts — may be preview.redd.it, route through proxy
+  const images = (preview as Record<string, unknown> | undefined)?.images as unknown[];
+  const mp4Variant = (images?.[0] as Record<string, unknown> | undefined)
+    ?.variants as Record<string, unknown> | undefined;
+  const mp4Source = mp4Variant?.mp4 as Record<string, unknown> | undefined;
+  const mp4Url = (mp4Source?.source as Record<string, unknown> | undefined)?.url as string | undefined;
+  if (mp4Url) {
+    return { type: 'video', src: proxyUrl(mp4Url.replace(/&amp;/g, '&')) };
   }
 
-  // 4. Bare v.redd.it URL with no media object (cross-posts) — construct DASH fallback directly
-  if ((p.url || '').includes('v.redd.it')) {
+  // 4. Bare v.redd.it URL (cross-posts)
+  if (((p.url as string) || '').includes('v.redd.it')) {
     const id = (p.url as string).split('/').filter(Boolean).pop();
     return { type: 'video', src: `https://v.redd.it/${id}/DASH_720.mp4?source=fallback` };
   }
 
-  // 5. Fallback to image (real GIFs or static)
-  return {
-    type: 'image',
-    src: p.url || p.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&') || ''
-  };
+  // 5. Fallback to image — may be preview.redd.it, route through proxy
+  const imgSource = (images?.[0] as Record<string, unknown> | undefined)
+    ?.source as Record<string, unknown> | undefined;
+  const fallbackUrl = (p.url as string)
+    || (imgSource?.url as string | undefined)?.replace(/&amp;/g, '&')
+    || '';
+  return { type: 'image', src: proxyUrl(fallbackUrl) };
 };
 
 export function useRedditPosts() {
@@ -75,12 +88,14 @@ export function useRedditPosts() {
       const params = new URLSearchParams({ limit: '25' });
       if (sort === 'top') params.set('t', timePeriod);
       if (pageParam) params.set('after', String(pageParam));
-      const url = `/api/reddit/r/${currentSub}/${sort}.json?${params}`;
+
+      // Direct Reddit JSON API — Reddit's public endpoints have CORS headers
+      const url = `https://www.reddit.com/r/${currentSub}/${sort}.json?${params}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error();
-      const json = await res.json();
-      const raw = json.data.children.map((c: any) => c.data);
-      const posts = raw.filter(isMediaPost).map((p: any) => ({ ...p, ...getMediaSrc(p) }));
+      const json = await res.json() as { data: { children: { data: Record<string, unknown> }[]; after: string } };
+      const raw = json.data.children.map(c => c.data);
+      const posts = raw.filter(isMediaPost).map(p => ({ ...p, ...getMediaSrc(p) })) as MediaPost[];
       return { posts, after: json.data.after };
     },
     initialPageParam: '',

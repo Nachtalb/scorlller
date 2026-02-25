@@ -1,15 +1,5 @@
-'use client';
-
-import { useEffect } from 'react';
-
+// Service worker registration is handled automatically by vite-plugin-pwa.
+// This component is kept as a no-op for compatibility.
 export default function ServiceWorkerRegistrar() {
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .catch(err => console.warn('SW registration failed:', err));
-    }
-  }, []);
-
   return null;
 }

@@ -221,3 +221,14 @@ media_cache/
 # Claude Code
 .claude/
 next-env.d.ts
+
+# Caddy binaries (downloaded locally, not committed)
+caddy-amd64
+caddy-arm64
+
+# Caddy cache directories
+caddy-cache/
+caddy-cache-dev/
+
+# Vite build output
+dist/
