@@ -44,11 +44,15 @@ export default function Scrolller() {
             {starred.map(sub => (
               <div
                 key={sub}
-                onClick={() => { useAppStore.getState().setCurrentSub(sub); setBottomTab('reel'); }}
-                className="bg-zinc-900 px-6 py-4 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95"
+                className="bg-zinc-900 px-6 py-4 rounded-2xl flex justify-between items-center"
               >
-                r/{sub}
-                <button onClick={e => { e.stopPropagation(); useAppStore.getState().toggleStar(sub); }} className="text-red-500 text-sm">Remove</button>
+                <span
+                  onClick={() => { useAppStore.getState().setCurrentSub(sub); setBottomTab('reel'); }}
+                  className="flex-1 cursor-pointer active:scale-95 transition-transform"
+                >
+                  r/{sub}
+                </span>
+                <button onClick={() => useAppStore.getState().toggleStar(sub)} className="text-red-500 text-sm">Remove</button>
               </div>
             ))}
           </div>
