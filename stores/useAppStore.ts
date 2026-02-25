@@ -52,7 +52,7 @@ export const useAppStore = create<AppStore>()(
       bottomTab: 'reel',
       starred: [],
       lastPositions: {},
-      muted: true,
+      muted: false,
 
       setCurrentSub: (sub) => {
         const clean = sub.toLowerCase().replace(/^r\//, '').trim();

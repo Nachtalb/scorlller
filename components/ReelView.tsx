@@ -27,7 +27,21 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
   const wheelAccum = useRef(0);
   const wheelLocked = useRef(false);
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
-  const { updateLastPosition, currentSub, muted, setMuted } = useAppStore();
+  const { updateLastPosition, currentSub, setMuted } = useAppStore();
+
+  // PWA (standalone) allows unmuted autoplay; regular browser tabs require muted
+  const [isPWA] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           !!(navigator as any).standalone;
+  });
+
+  // sessionMuted: PWA follows persisted preference (default unmuted); browser always starts muted
+  const [sessionMuted, setSessionMuted] = useState<boolean>(() =>
+    isPWA ? useAppStore.getState().muted : true
+  );
+  const sessionMutedRef = useRef(sessionMuted);
+  sessionMutedRef.current = sessionMuted;
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRedditPosts();
 
   const currentAfter = data?.pages[data.pages.length - 1]?.after || null;
@@ -39,11 +53,11 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     }
   }, [posts.length, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
 
-  // Play current video, respecting stored mute preference
+  // Play current video, respecting session mute preference
   useEffect(() => {
     const v = videoRefs.current[currentIndex];
     if (v) {
-      v.muted = useAppStore.getState().muted;
+      v.muted = sessionMutedRef.current;
       v.play().catch(() => {});
     }
   }, [currentIndex]);
@@ -57,7 +71,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     videoRefs.current.forEach((v, i) => {
       if (!v) return;
       if (i === idx) {
-        v.muted = muted; // apply stored preference on each slide change
+        v.muted = sessionMuted;
         v.play().catch(() => {});
       } else {
         v.pause();
@@ -67,7 +81,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     if (idx > posts.length - 5 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [emblaApi, setCurrentIndex, updateLastPosition, currentSub, currentAfter, muted, posts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [emblaApi, setCurrentIndex, updateLastPosition, currentSub, currentAfter, sessionMuted, posts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -111,7 +125,8 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     if (v) {
       const next = !v.muted;
       v.muted = next;
-      setMuted(next);
+      setSessionMuted(next);
+      if (isPWA) setMuted(next);
     }
   };
 
@@ -250,8 +265,8 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                     </button>
                     <button title="Share" onClick={() => handleShare(post)}><Share2 size={28} /></button>
                     {post.type === 'video' && (
-                      <button title={idx === currentIndex && muted ? 'Unmute' : 'Mute'} onClick={() => toggleMute(idx)}>
-                        {idx === currentIndex && muted ? <VolumeX size={28} /> : <Volume2 size={28} />}
+                      <button title={idx === currentIndex && sessionMuted ? 'Unmute' : 'Mute'} onClick={() => toggleMute(idx)}>
+                        {idx === currentIndex && sessionMuted ? <VolumeX size={28} /> : <Volume2 size={28} />}
                       </button>
                     )}
                   </div>
