@@ -1,50 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const USER_AGENT = 'Scrolller/1.0';
+// id is the PascalCase filename extracted from the CDN thumbnail URL
+// e.g. "WiryGiddyWaterbuck" -> proxy https://media.redgifs.com/WiryGiddyWaterbuck.mp4
 
-// Cache the temporary token in module scope — it lasts ~24h
-let cachedToken: string | null = null;
-let tokenExpiry = 0;
-
-async function getToken(): Promise<string> {
-  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
-
-  const res = await fetch('https://api.redgifs.com/v2/auth/temporary', {
-    headers: { 'User-Agent': USER_AGENT },
-  });
-  if (!res.ok) throw new Error(`redgifs auth ${res.status}`);
-  const data = await res.json();
-  cachedToken = data.token as string;
-  tokenExpiry = Date.now() + 23 * 60 * 60 * 1000; // 23h
-  return cachedToken;
-}
+const PASS_HEADERS = ['content-type', 'content-length', 'content-range', 'accept-ranges'];
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const videoUrl = `https://media.redgifs.com/${id}.mp4`;
 
-  try {
-    const token = await getToken();
+  const upstream = await fetch(videoUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer': 'https://www.redgifs.com/',
+      'Origin': 'https://www.redgifs.com',
+      ...(req.headers.get('range') ? { 'Range': req.headers.get('range')! } : {}),
+    },
+  });
 
-    const res = await fetch(`https://api.redgifs.com/v2/gifs/${id.toLowerCase()}`, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) throw new Error(`redgifs api ${res.status}`);
-
-    const data = await res.json();
-    const videoUrl: string = data.gif?.urls?.hd || data.gif?.urls?.sd;
-
-    if (!videoUrl) throw new Error('no video url');
-
-    return NextResponse.redirect(videoUrl, { status: 302 });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: 'redgifs proxy failed' }, { status: 500 });
+  if (!upstream.ok && upstream.status !== 206) {
+    return new NextResponse(null, { status: upstream.status });
   }
+
+  const headers = new Headers();
+  for (const h of PASS_HEADERS) {
+    const v = upstream.headers.get(h);
+    if (v) headers.set(h, v);
+  }
+
+  return new NextResponse(upstream.body, {
+    status: upstream.status,
+    headers,
+  });
 }

@@ -29,17 +29,15 @@ const isMediaPost = (p: any): boolean => {
 };
 
 const getMediaSrc = (p: any): {type: 'image' | 'video'; src: string} => {
-  // 1. Redgifs — derive MP4 URL from oEmbed thumbnail (already in Reddit post data, no extra API call)
-  // thumbnail_url: https://media.redgifs.com/WiryGiddyWaterbuck-poster.jpg
-  // video url:     https://media.redgifs.com/WiryGiddyWaterbuck.mp4
+  // 1. Redgifs — extract PascalCase ID from oEmbed thumbnail URL, proxy through our server
+  // thumbnail_url: https://media.redgifs.com/WiryGiddyWaterbuck-poster.jpg  -> id: WiryGiddyWaterbuck
+  // proxy route:   /api/redgifs/WiryGiddyWaterbuck  (sets correct Referer, streams bytes)
   const rgOembed = (p.secure_media?.type === 'redgifs.com' && p.secure_media?.oembed)
                 || (p.media?.type === 'redgifs.com' && p.media?.oembed);
   if (rgOembed?.thumbnail_url) {
-    const videoUrl = (rgOembed.thumbnail_url as string)
-      .replace(/-(?:poster|mobile|large|small)\.[a-z]+$/i, '.mp4')
-      .replace(/\.[a-z]+$/i, '.mp4');
-    if (videoUrl.endsWith('.mp4')) {
-      return { type: 'video', src: videoUrl };
+    const m = (rgOembed.thumbnail_url as string).match(/\/([^/]+?)(?:-(?:poster|mobile|large|small))?\.[a-z]+$/i);
+    if (m?.[1]) {
+      return { type: 'video', src: `/api/redgifs/${m[1]}` };
     }
   }
 
