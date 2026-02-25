@@ -42,6 +42,12 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
+  server: {
+    // In dev, forward proxy routes to the nginx container (docker compose up -d)
+    proxy: {
+      '/proxy': 'http://localhost:3001',
+    },
+  },
   test: {
     globals: true,
     environment: 'node',

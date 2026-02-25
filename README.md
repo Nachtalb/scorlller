@@ -2,7 +2,7 @@
 
 TikTok-style Reddit media viewer. Browse any subreddit as a vertical reel or a grid gallery.
 
-**Stack:** Vite + React SPA · Caddy (with cache-handler) · No server-side runtime
+**Stack:** Vite + React SPA · nginx (Docker) · No server-side runtime
 
 ---
 
@@ -11,108 +11,67 @@ TikTok-style Reddit media viewer. Browse any subreddit as a vertical reel or a g
 ```
 Browser (PWA)
   │
-  ├── Static assets              ← Caddy file_server → dist/
-  ├── /proxy/redgifs/*           → media.redgifs.com  (header spoofing + in-memory cache)
+  ├── /                          ← nginx file_server → dist/
+  ├── /proxy/reddit/*            → www.reddit.com     (OpenSSL TLS — bypasses Go fingerprint block)
+  ├── /proxy/redgifs/*           → media.redgifs.com  (browser UA spoofing + disk cache)
   ├── /proxy/preview/*           → preview.redd.it    (CORS injection)
-  ├── /proxy/ext-preview/*       → external-preview.redd.it (CORS injection, downloads only)
-  └── www.reddit.com/r/…         → Direct (Reddit JSON API has CORS)
+  └── /proxy/ext-preview/*       → external-preview.redd.it (CORS injection, downloads only)
 ```
 
-Caddy is the only backend process. No Node.js. No Bun.
+nginx is the only backend process. No Node.js. No Bun.
 
 ---
 
 ## Development
 
 ```bash
-# Install dependencies
 npm install
 
-# Download Caddy with cache-handler plugin (amd64)
-curl -fL "https://caddyserver.com/api/download?os=linux&arch=amd64&p=github.com/caddyserver/cache-handler" \
-  -o caddy-amd64 && chmod +x caddy-amd64
+# Terminal 1: nginx proxy (docker compose up starts nginx on :3001)
+PORT=3001 docker compose up -d
 
-# Terminal 1: Vite dev server (HMR on :5173)
+# Terminal 2: Vite dev server with HMR (:5173, proxies /proxy/* to nginx)
 npm run dev
 
-# Terminal 2: Caddy dev proxy (:3000 → :5173 + proxy routes)
-./caddy-amd64 run --config Caddyfile.dev
-
-# Open http://localhost:3000
+# Open http://localhost:5173
 ```
 
-`Caddyfile.dev` forwards all non-proxy traffic to Vite's dev server so HMR works normally. Proxy routes are identical to production.
+Vite's dev server forwards all `/proxy/*` requests to nginx, so HMR and proxy routes work together.
 
 ---
 
-## Production build
+## Production
 
 ```bash
 npm run build          # outputs to dist/
-./caddy-amd64 run --config Caddyfile   # serves dist/ + proxy routes on :3000
-```
-
-Override port and dist dir via env vars:
-
-```bash
-PORT=8080 CADDY_DIST_DIR=/opt/scorlller/dist ./caddy run --config Caddyfile
-```
-
----
-
-## Portable tarball (ARM64 for Termux)
-
-```bash
-./scripts/build-portable.sh arm64
-# → /tmp/scorlller-arm64.tar.gz
-```
-
-The script downloads `caddy-arm64` with cache-handler, runs `npm run build`, and packages everything into a self-contained tarball.
-
-**Deploy on Termux:**
-
-```bash
-tar -xzf scorlller-arm64.tar.gz
-cd scorlller-dist
-./start.sh    # Caddy on :3000, cache lives in ./caddy-cache/
-```
-
-Tarball contents:
-```
-scorlller-dist/
-├── dist/       ← Vite build output
-├── caddy       ← Caddy binary with cache-handler (~50MB)
-├── Caddyfile   ← Production config
-└── start.sh    ← exec ./caddy run --config Caddyfile
+PORT=3000 docker compose up -d   # nginx serves dist/ + proxy routes on :3000
 ```
 
 ---
 
 ## Proxy routes
 
+### `/proxy/reddit/*` → `www.reddit.com`
+
+Reddit's JSON API returns no CORS headers for browser requests. nginx proxies with a bot-style User-Agent (`scorlller/2.0 by Nachtalb`) and injects CORS headers. nginx uses OpenSSL for upstream TLS — Go's TLS fingerprint gets blocked by Reddit's Cloudflare layer.
+
 ### `/proxy/redgifs/*` → `media.redgifs.com`
 
-Spoofs browser headers (`User-Agent`, `Referer`, `Origin`) and strips proxy-reveal headers (`X-Forwarded-*`, `Via`) that CDN77 bot detection rejects. Responses cached in-memory by Souin (24h TTL).
+Spoofs browser headers (`User-Agent`, `Referer`, `Origin`) and strips proxy-reveal headers that CDN77 bot detection rejects. Uses nginx's `slice` module to stream video in 1 MB chunks — each chunk is cached to disk and streamed to the client simultaneously (no buffer-then-serve delay). Cache TTL: 7 days.
 
 ### `/proxy/preview/*` → `preview.redd.it`
 
-`preview.redd.it` has no CORS headers. Caddy injects `Access-Control-Allow-Origin: *` so the browser can fetch preview images and mp4 GIF variants.
+`preview.redd.it` sends no CORS headers. nginx injects `Access-Control-Allow-Origin: *` so the browser can render preview images and mp4 GIF variants.
 
 ### `/proxy/ext-preview/*` → `external-preview.redd.it`
 
-Same as above. Only used in the download flow (the `<img>` rendering uses Reddit's partial CORS directly).
+Same as above. Only used in the download flow.
 
 ---
 
 ## Caching
 
-Caddy uses the [souin](https://github.com/darkweak/souin) cache-handler module. Default storage is in-memory LRU — fast, no extra plugins needed. Cache survives as long as Caddy runs; cleared on restart.
-
-> **For disk persistence** across Caddy restarts, rebuild with the nuts storage plugin:
-> ```
-> github.com/darkweak/storages/nuts/caddy
-> ```
-> Then add `nuts { path ./caddy-cache }` inside the `cache {}` block in Caddyfile.
+Redgifs video slices are cached to disk via nginx's built-in `proxy_cache` (Docker named volume `redgifs-cache`). Max size: 5 GB, inactive eviction after 7 days. Cache status visible in the `X-Cache-Status` response header (`HIT` / `MISS`).
 
 ---
 
@@ -130,11 +89,11 @@ Caddy uses the [souin](https://github.com/darkweak/souin) cache-handler module. 
 
 ### Reel view
 
-| Key              | Action                |
-| ---------------- | --------------------- |
-| `j` / `↓`       | Next post             |
-| `k` / `↑`       | Previous post         |
-| `d` / `Ctrl+S`  | Download current post |
+| Key             | Action                |
+| --------------- | --------------------- |
+| `j` / `↓`      | Next post             |
+| `k` / `↑`      | Previous post         |
+| `d` / `Ctrl+S` | Download current post |
 
 ### Bookmarks view
 
