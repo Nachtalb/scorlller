@@ -4,7 +4,12 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import EmblaCarousel from 'embla-carousel-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useRedditPosts, MediaPost } from '@/hooks/useRedditPosts';
-import { Download, Share2, Volume2, VolumeX, Loader2, SearchX } from 'lucide-react';
+import { Download, Share2, Volume2, VolumeX, Loader2, SearchX, ArrowUp } from 'lucide-react';
+
+const fmt = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}m`
+  : n >= 1_000   ? `${(n / 1_000).toFixed(1)}k`
+  : String(n);
 
 interface Props {
   posts: MediaPost[];
@@ -271,6 +276,10 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                   </div>
 
                   <div className="flex flex-col gap-6 text-3xl">
+                    <div className="flex flex-col items-center gap-1">
+                      <ArrowUp size={28} className="text-zinc-300" />
+                      <span className="text-xs text-zinc-300 font-medium">{fmt(post.score)}</span>
+                    </div>
                     <button
                       title="Download"
                       onClick={() => handleSave(post)}

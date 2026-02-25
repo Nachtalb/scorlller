@@ -9,6 +9,11 @@ import Masonry from 'react-masonry-css';
 
 const BREAKPOINTS = { default: 5, 1280: 4, 1024: 3, 640: 2, 0: 1 };
 
+const fmt = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}m`
+  : n >= 1_000   ? `${(n / 1_000).toFixed(1)}k`
+  : String(n);
+
 export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) => void }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRedditPosts();
   const posts = data?.pages.flatMap(p => p.posts) || [];
@@ -92,8 +97,9 @@ export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) 
                 className="w-full"
               />
             )}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 p-3 text-xs">
-              r/{post.subreddit}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 p-3 text-xs flex justify-between items-center">
+              <span>r/{post.subreddit}</span>
+              <span className="text-zinc-300">↑ {fmt(post.score)}</span>
             </div>
           </motion.div>
         ))}
