@@ -86,20 +86,20 @@ export default function TopBar() {
           </div>
         </div>
 
-        <button onClick={handleSubmit} className="p-2 text-zinc-400 hover:text-white">
+        <button title="Search" onClick={handleSubmit} className="p-2 text-zinc-400 hover:text-white">
           <Search size={20} />
         </button>
 
-        <button onClick={() => toggleStar(currentSub)} className={`p-2 ${isStarred ? 'text-yellow-400' : 'text-zinc-400'}`}>
+        <button title={isStarred ? 'Unstar subreddit' : 'Star subreddit'} onClick={() => toggleStar(currentSub)} className={`p-2 ${isStarred ? 'text-yellow-400' : 'text-zinc-400'}`}>
           <Star size={20} fill={isStarred ? 'currentColor' : 'none'} />
         </button>
 
-        <select value={sort} onChange={e => setSort(e.target.value as any)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm">
+        <select title="Sort" value={sort} onChange={e => setSort(e.target.value as any)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm">
           {['hot', 'new', 'top', 'rising'].map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         {sort === 'top' && (
-          <select value={timePeriod} onChange={e => setTimePeriod(e.target.value as any)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm">
+          <select title="Time period" value={timePeriod} onChange={e => setTimePeriod(e.target.value as any)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1 text-sm">
             {['day', 'week', 'month', 'year', 'all'].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
