@@ -5,7 +5,9 @@ services:
     environment:
       - MEDIA_CACHE_DIR=/cache/media  # Remove to disable video caching
     volumes:
-      - media_cache:/cache/media
+      - ./media_cache:/cache/media
+    ports:
+      - "3001:3000"
 
   nginx:
     image: nginx:alpine
