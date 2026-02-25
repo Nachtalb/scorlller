@@ -5,6 +5,7 @@ services:
       - "${PORT:-3000}:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./dist:/usr/share/nginx/html:ro
       - redgifs-cache:/var/cache/nginx/redgifs
     restart: unless-stopped
 
