@@ -34,9 +34,9 @@ const getMediaSrc = (p: Record<string, unknown>): { type: 'image' | 'video'; src
   const secure_media = p.secure_media as Record<string, unknown> | undefined;
   const preview = p.preview as Record<string, unknown> | undefined;
 
-  // 1. Redgifs — extract PascalCase ID from oEmbed thumbnail URL, proxy through Caddy
+  // 1. Redgifs — extract PascalCase ID from oEmbed thumbnail URL, proxy through nginx
   // thumbnail_url: https://media.redgifs.com/WiryGiddyWaterbuck-poster.jpg  -> id: WiryGiddyWaterbuck
-  // proxy route:   /proxy/redgifs/WiryGiddyWaterbuck.mp4  (sets correct Referer, cached by Caddy)
+  // proxy route:   /proxy/redgifs/WiryGiddyWaterbuck.mp4  (sets correct Referer, cached by nginx)
   const rgOembed = (secure_media?.type === 'redgifs.com' && (secure_media?.oembed as Record<string, unknown>))
                 || (media?.type === 'redgifs.com' && (media?.oembed as Record<string, unknown>));
   if (rgOembed && (rgOembed as Record<string, unknown>).thumbnail_url) {
@@ -89,7 +89,7 @@ export function useRedditPosts() {
       if (sort === 'top') params.set('t', timePeriod);
       if (pageParam) params.set('after', String(pageParam));
 
-      // Reddit JSON via Caddy proxy — www.reddit.com has no CORS headers for browser requests
+      // Reddit JSON via nginx proxy — www.reddit.com has no CORS headers for browser requests
       const url = `/proxy/reddit/r/${currentSub}/${sort}.json?${params}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error();

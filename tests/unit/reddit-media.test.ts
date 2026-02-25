@@ -171,7 +171,7 @@ describe('getMediaSrc()', () => {
       expect(result.src).toBe(fallback)
     })
 
-    it('does NOT proxy v.redd.it through Caddy', () => {
+    it('does NOT proxy v.redd.it through nginx', () => {
       const post = redditVideoPost('https://v.redd.it/someid/CMAF_720.mp4?source=fallback')
       const result = getMediaSrc(post)
       expect(result.src).not.toContain('/proxy/')

@@ -2,7 +2,7 @@
  * Tests for CORS preflight (OPTIONS) across all proxy routes.
  *
  * Browsers send a preflight OPTIONS request before cross-origin fetches.
- * Caddy must respond with 204 + correct CORS headers before the actual
+ * nginx must respond with 204 + correct CORS headers before the actual
  * request is attempted — otherwise the browser aborts.
  */
 

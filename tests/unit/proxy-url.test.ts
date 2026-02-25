@@ -2,7 +2,7 @@
  * Unit tests for proxyUrl()
  *
  * proxyUrl() rewrites CDN hostnames that lack browser CORS headers to go
- * through the Caddy proxy routes. Everything else passes through unchanged.
+ * through the nginx proxy routes. Everything else passes through unchanged.
  */
 
 import { describe, it, expect } from 'vitest'

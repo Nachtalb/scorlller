@@ -1,5 +1,5 @@
 /**
- * Rewrites CDN URLs that lack CORS headers to go through Caddy proxy routes.
+ * Rewrites CDN URLs that lack CORS headers to go through nginx proxy routes.
  *
  * i.redd.it                 → direct (has CORS)
  * v.redd.it                 → direct (has CORS)

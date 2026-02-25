@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
@@ -8,14 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // generateSW: let workbox produce the SW — configured with zero caching.
-      // Caching is handled entirely by Caddy's disk cache.
       strategies: 'generateSW',
       workbox: {
         clientsClaim: true,
         skipWaiting: true,
-        runtimeCaching: [],   // No runtime caching
-        globPatterns: [],     // No precaching of assets
+        runtimeCaching: [],  // No SW caching — nginx handles all proxy caching
+        globPatterns: [],    // No precaching of assets
         navigateFallback: null,
       },
       manifest: {
@@ -42,5 +40,14 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
-  // No dev proxy — Caddy handles all proxying (run: ./caddy-amd64 run --config Caddyfile.dev)
+  test: {
+    globals: true,
+    environment: 'node',
+    env: {
+      PROXY_BASE: process.env.PROXY_BASE ?? 'http://localhost:3001',
+    },
+    include: ['tests/**/*.test.ts'],
+    testTimeout: 15000,
+    hookTimeout: 30000,
+  },
 })

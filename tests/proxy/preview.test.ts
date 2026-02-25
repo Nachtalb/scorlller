@@ -68,11 +68,11 @@ describe('GET /proxy/preview/{path}?{signed-params}', () => {
 describe('GET /proxy/ext-preview/{path}?{signed-params}', () => {
   // external-preview.redd.it has partial CORS but we proxy it for reliable download support
   it('returns a non-5xx response for a proxied ext-preview path', async () => {
-    // We don't have a live ext-preview URL to hand, so just verify Caddy routes it
+    // We don't have a live ext-preview URL to hand, so just verify nginx routes it
     // (not serving the SPA index.html) by checking Content-Type is not text/html
     const testPath = `/proxy/ext-preview/test/nonexistent.jpg?s=fake`
     const res = await fetch(`${BASE}${testPath}`)
-    // Caddy should forward to external-preview.redd.it, not serve index.html
+    // nginx should forward to external-preview.redd.it, not serve index.html
     expect(res.headers.get('content-type')).not.toMatch(/text\/html/)
     // Response from upstream is expected to be 4xx (not found), not 200 with index.html
     expect(res.status).not.toBe(200)

@@ -131,7 +131,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
       if (match) ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
     }
 
-    // Use proxyUrl to rewrite preview.redd.it / external-preview.redd.it through Caddy.
+    // Use proxyUrl to rewrite preview.redd.it / external-preview.redd.it through nginx.
     // i.redd.it, v.redd.it, /proxy/redgifs/* etc. pass through unchanged.
     const downloadSrc = proxyUrl(post.src);
 
