@@ -8,7 +8,6 @@ import { getStarred, saveStarred } from '@/lib/db';
 export type SortType = 'hot' | 'new' | 'top' | 'rising';
 export type TimePeriod = 'day' | 'week' | 'month' | 'year' | 'all';
 export type BottomTab = 'reel' | 'gallery' | 'starred';
-export type NavPosition = 'bottom' | 'left';
 export type ActionPosition = 'bottom-right' | 'top-left';
 
 interface LastPosition { index: number; after: string | null; }
@@ -22,7 +21,6 @@ interface AppStore {
   starred: string[];
   lastPositions: Record<string, LastPosition>;
   muted: boolean;
-  navPosition: NavPosition;
   actionPosition: ActionPosition;
 
   setCurrentSub: (sub: string) => void;
@@ -34,7 +32,6 @@ interface AppStore {
   resetPosition: (sub: string) => void;
   initStarred: () => Promise<void>;
   setMuted: (m: boolean) => void;
-  setNavPosition: (p: NavPosition) => void;
   setActionPosition: (p: ActionPosition) => void;
 }
 
@@ -61,7 +58,6 @@ export const useAppStore = create<AppStore>()(
       starred: [],
       lastPositions: {},
       muted: false,
-      navPosition: 'bottom',
       actionPosition: 'bottom-right',
 
       setCurrentSub: (sub) => {
@@ -91,7 +87,6 @@ export const useAppStore = create<AppStore>()(
         set({ starred: saved });
       },
       setMuted: (m) => set({ muted: m }),
-      setNavPosition: (p) => set({ navPosition: p }),
       setActionPosition: (p) => set({ actionPosition: p }),
     }),
     {
@@ -106,7 +101,6 @@ export const useAppStore = create<AppStore>()(
         starred: state.starred,
         lastPositions: state.lastPositions,
         muted: state.muted,
-        navPosition: state.navPosition,
         actionPosition: state.actionPosition,
       }),
     }
