@@ -9,6 +9,7 @@ export type SortType = 'hot' | 'new' | 'top' | 'rising';
 export type TimePeriod = 'day' | 'week' | 'month' | 'year' | 'all';
 export type BottomTab = 'reel' | 'gallery' | 'starred';
 export type NavPosition = 'bottom' | 'left';
+export type ActionPosition = 'bottom-right' | 'top-left';
 
 interface LastPosition { index: number; after: string | null; }
 
@@ -22,6 +23,7 @@ interface AppStore {
   lastPositions: Record<string, LastPosition>;
   muted: boolean;
   navPosition: NavPosition;
+  actionPosition: ActionPosition;
 
   setCurrentSub: (sub: string) => void;
   setSort: (s: SortType, p?: TimePeriod) => void;
@@ -33,6 +35,7 @@ interface AppStore {
   initStarred: () => Promise<void>;
   setMuted: (m: boolean) => void;
   setNavPosition: (p: NavPosition) => void;
+  setActionPosition: (p: ActionPosition) => void;
 }
 
 /** true once Zustand has rehydrated state from localStorage */
@@ -59,6 +62,7 @@ export const useAppStore = create<AppStore>()(
       lastPositions: {},
       muted: false,
       navPosition: 'bottom',
+      actionPosition: 'bottom-right',
 
       setCurrentSub: (sub) => {
         const clean = sub.toLowerCase().replace(/^r\//, '').trim();
@@ -88,6 +92,7 @@ export const useAppStore = create<AppStore>()(
       },
       setMuted: (m) => set({ muted: m }),
       setNavPosition: (p) => set({ navPosition: p }),
+      setActionPosition: (p) => set({ actionPosition: p }),
     }),
     {
       name: 'scrolller-storage',
@@ -102,6 +107,7 @@ export const useAppStore = create<AppStore>()(
         lastPositions: state.lastPositions,
         muted: state.muted,
         navPosition: state.navPosition,
+        actionPosition: state.actionPosition,
       }),
     }
   )

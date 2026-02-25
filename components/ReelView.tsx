@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import EmblaCarousel from 'embla-carousel-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useRedditPosts, MediaPost } from '@/hooks/useRedditPosts';
-import { Download, Share2, Volume2, VolumeX, Loader2, SearchX, ArrowUp } from 'lucide-react';
+import { Download, Share2, Volume2, VolumeX, Loader2, SearchX, ArrowUp, MoveUpLeft, MoveDownRight } from 'lucide-react';
 
 const fmt = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}m`
@@ -33,7 +33,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
   const wheelAccum = useRef(0);
   const wheelLocked = useRef(false);
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
-  const { updateLastPosition, currentSub, setMuted } = useAppStore();
+  const { updateLastPosition, currentSub, setMuted, actionPosition, setActionPosition } = useAppStore();
 
   // PWA (standalone) allows unmuted autoplay; regular browser tabs require muted
   const [isPWA] = useState<boolean>(() => {
@@ -240,6 +240,36 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                 )}
               </div>
 
+              {/* Action buttons — top-left floating or bottom-right overlay */}
+              {actionPosition === 'top-left' && idx === currentIndex && (
+                <div className="absolute top-16 left-3 z-50 flex flex-col gap-1 bg-black/60 backdrop-blur-md border border-zinc-700/50 rounded-2xl p-2">
+                  <div className="flex flex-col items-center gap-1 px-2 py-1.5">
+                    <ArrowUp size={22} className="text-zinc-300" />
+                    <span className="text-[10px] text-zinc-300 font-medium">{fmt(post.score)}</span>
+                  </div>
+                  <button title="Download" onClick={() => handleSave(post)} disabled={isDownloading}
+                    className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl hover:bg-zinc-700/50 transition-colors disabled:opacity-60">
+                    {isDownloading ? <Loader2 size={22} className="animate-spin" /> : <Download size={22} />}
+                  </button>
+                  <button title="Share" onClick={() => handleShare(post)}
+                    className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl hover:bg-zinc-700/50 transition-colors">
+                    <Share2 size={22} />
+                  </button>
+                  {post.type === 'video' && (
+                    <button title={sessionMuted ? 'Unmute' : 'Mute'} onClick={() => toggleMute(idx)}
+                      className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl hover:bg-zinc-700/50 transition-colors">
+                      {sessionMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+                    </button>
+                  )}
+                  <div className="border-t border-zinc-700/50 mt-1 pt-1">
+                    <button title="Move to bottom-right" onClick={() => setActionPosition('bottom-right')}
+                      className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/50 transition-colors w-full">
+                      <MoveDownRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-20 pb-24 px-6">
                 <div className="flex justify-between items-end gap-6">
                   <div className="flex-1 min-w-0">
@@ -275,26 +305,28 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                     </a>
                   </div>
 
-                  <div className="flex flex-col gap-6 text-3xl">
-                    <div className="flex flex-col items-center gap-1">
-                      <ArrowUp size={28} className="text-zinc-300" />
-                      <span className="text-xs text-zinc-300 font-medium">{fmt(post.score)}</span>
-                    </div>
-                    <button
-                      title="Download"
-                      onClick={() => handleSave(post)}
-                      disabled={isDownloading}
-                      className="transition-all disabled:opacity-60"
-                    >
-                      {isDownloading ? <Loader2 size={28} className="animate-spin" /> : <Download size={28} />}
-                    </button>
-                    <button title="Share" onClick={() => handleShare(post)}><Share2 size={28} /></button>
-                    {post.type === 'video' && (
-                      <button title={idx === currentIndex && sessionMuted ? 'Unmute' : 'Mute'} onClick={() => toggleMute(idx)}>
-                        {idx === currentIndex && sessionMuted ? <VolumeX size={28} /> : <Volume2 size={28} />}
+                  {actionPosition === 'bottom-right' && (
+                    <div className="flex flex-col gap-6 text-3xl">
+                      <div className="flex flex-col items-center gap-1">
+                        <ArrowUp size={28} className="text-zinc-300" />
+                        <span className="text-xs text-zinc-300 font-medium">{fmt(post.score)}</span>
+                      </div>
+                      <button title="Download" onClick={() => handleSave(post)} disabled={isDownloading}
+                        className="transition-all disabled:opacity-60">
+                        {isDownloading ? <Loader2 size={28} className="animate-spin" /> : <Download size={28} />}
                       </button>
-                    )}
-                  </div>
+                      <button title="Share" onClick={() => handleShare(post)}><Share2 size={28} /></button>
+                      {post.type === 'video' && (
+                        <button title={idx === currentIndex && sessionMuted ? 'Unmute' : 'Mute'} onClick={() => toggleMute(idx)}>
+                          {idx === currentIndex && sessionMuted ? <VolumeX size={28} /> : <Volume2 size={28} />}
+                        </button>
+                      )}
+                      <button title="Move to top-left" onClick={() => setActionPosition('top-left')}
+                        className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                        <MoveUpLeft size={24} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
