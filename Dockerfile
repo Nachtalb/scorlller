@@ -7,7 +7,7 @@ COPY . .
 RUN bun run build
 
 # Stage 3: minimal production runner
-FROM oven/bun:1 AS runner
+FROM oven/bun:1-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
