@@ -32,7 +32,7 @@ export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) 
           fetchNextPage();
         }
       },
-      { rootMargin: '200px' }
+      { rootMargin: '800px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
