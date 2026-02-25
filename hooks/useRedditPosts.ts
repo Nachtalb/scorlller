@@ -89,8 +89,8 @@ export function useRedditPosts() {
       if (sort === 'top') params.set('t', timePeriod);
       if (pageParam) params.set('after', String(pageParam));
 
-      // Direct Reddit JSON API — Reddit's public endpoints have CORS headers
-      const url = `https://www.reddit.com/r/${currentSub}/${sort}.json?${params}`;
+      // Reddit JSON via Caddy proxy — www.reddit.com has no CORS headers for browser requests
+      const url = `/proxy/reddit/r/${currentSub}/${sort}.json?${params}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error();
       const json = await res.json() as { data: { children: { data: Record<string, unknown> }[]; after: string } };

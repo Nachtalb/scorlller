@@ -633,3 +633,32 @@ jobs:
 - [ ] `scripts/build-portable.sh` written
 - [ ] ARM64 tarball built and tested on Termux
 - [ ] GitHub Actions workflow updated
+
+---
+
+## Testing Notes (Phase 2 findings)
+
+### Reddit JSON API — CORS behaviour
+- No UA → **403** (must send a UA)
+- Any UA **without** `Origin` header → 200 + `access-control-allow-origin: *`
+- Any UA **with** `Origin` header (as browsers always send) → 200 + **no CORS header** → browser blocks
+- **Conclusion:** Reddit's JSON API never echoes CORS for browser requests. Proxy is mandatory.
+- **UA to use in proxy:** browser UA (`Mozilla/5.0 ...`) — not app/bot UA
+
+### preview.redd.it — signed URLs
+- URLs contain a time-limited `s=` signature param
+- Valid signature → 200, no CORS header
+- Expired/wrong signature → 403
+- With `Origin` → 200, still no CORS header
+- **Conclusion:** Proxy must inject `Access-Control-Allow-Origin: *`
+
+### media.redgifs.com — CORS
+- No headers → 200, no CORS header
+- With spoofed Referer+Origin → 200, `access-control-allow-origin: https://www.redgifs.com` (locked — blocks our origin)
+- Range: bytes=0- (Android pattern) → 206, returns full body
+- Range: bytes=X-Y → 206, correct partial content
+- **Conclusion:** Proxy must overwrite CORS header to `*`
+
+### Direct (no proxy)
+- `i.redd.it` → reflects any `Origin` as `access-control-allow-origin: <origin>` ✅
+- `v.redd.it` → `access-control-allow-origin: *` ✅

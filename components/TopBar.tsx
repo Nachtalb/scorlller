@@ -32,7 +32,7 @@ export default function TopBar() {
     const timer = setTimeout(async () => {
       const clean = inputValue.toLowerCase().replace(/^r\//, '').trim();
       try {
-        const res = await fetch(`https://www.reddit.com/r/${clean}.json?limit=1`);
+        const res = await fetch(`/proxy/reddit/r/${clean}.json?limit=1`);
         setValidation(res.ok ? 'valid' : 'invalid');
       } catch { setValidation('invalid'); }
     }, 400);
@@ -44,7 +44,7 @@ export default function TopBar() {
     if (!clean) return;
 
     setValidation('checking');
-    const res = await fetch(`https://www.reddit.com/r/${clean}.json?limit=1`);
+    const res = await fetch(`/proxy/reddit/r/${clean}.json?limit=1`);
 
     if (res.ok) {
       setCurrentSub(inputValue);

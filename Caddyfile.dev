@@ -39,6 +39,23 @@
 		}
 	}
 
+	handle /proxy/reddit/* {
+		uri strip_prefix /proxy/reddit
+		reverse_proxy https://www.reddit.com {
+			header_up Host "www.reddit.com"
+			header_up User-Agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+			header_up -Cookie
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-Ip
+			header_up -Via
+			header_down Access-Control-Allow-Origin  "*"
+			header_down Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+			header_down -Set-Cookie
+		}
+	}
+
 	handle /proxy/preview/* {
 		uri strip_prefix /proxy/preview
 		reverse_proxy https://preview.redd.it {
