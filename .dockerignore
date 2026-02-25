@@ -1,3 +1,5 @@
 .next
 node_modules
 .git
+media_cache
+.claude
