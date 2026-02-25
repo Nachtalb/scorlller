@@ -72,8 +72,10 @@ export function useRedditPosts() {
   return useInfiniteQuery({
     queryKey: ['posts', currentSub, sort, timePeriod],
     queryFn: async ({ pageParam = '' }) => {
-      let url = `/api/reddit/r/${currentSub}/${sort === 'top' ? `top?t=${timePeriod}` : sort}.json?limit=25`;
-      if (pageParam) url += `&after=${pageParam}`;
+      const params = new URLSearchParams({ limit: '25' });
+      if (sort === 'top') params.set('t', timePeriod);
+      if (pageParam) params.set('after', String(pageParam));
+      const url = `/api/reddit/r/${currentSub}/${sort}.json?${params}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error();
       const json = await res.json();

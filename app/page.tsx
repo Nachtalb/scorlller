@@ -47,7 +47,7 @@ export default function Scrolller() {
                 className="bg-zinc-900 px-6 py-4 rounded-2xl flex justify-between items-center"
               >
                 <span
-                  onClick={() => { useAppStore.getState().setCurrentSub(sub); setBottomTab('reel'); }}
+                  onClick={() => { useAppStore.getState().setCurrentSub(sub); setBottomTab(useAppStore.getState().lastContentTab); }}
                   className="flex-1 cursor-pointer active:scale-95 transition-transform"
                 >
                   r/{sub}

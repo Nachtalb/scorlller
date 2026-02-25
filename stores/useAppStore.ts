@@ -16,6 +16,7 @@ interface AppStore {
   sort: SortType;
   timePeriod: TimePeriod;
   bottomTab: BottomTab;
+  lastContentTab: 'reel' | 'gallery';
   starred: string[];
   lastPositions: Record<string, LastPosition>;
   muted: boolean;
@@ -50,6 +51,7 @@ export const useAppStore = create<AppStore>()(
       sort: 'hot',
       timePeriod: 'day',
       bottomTab: 'reel',
+      lastContentTab: 'reel',
       starred: [],
       lastPositions: {},
       muted: false,
@@ -60,7 +62,7 @@ export const useAppStore = create<AppStore>()(
       },
       setSort: (s, p) => set({ sort: s, timePeriod: p ?? get().timePeriod }),
       setTimePeriod: (p) => set({ timePeriod: p }),
-      setBottomTab: (t) => set({ bottomTab: t }),
+      setBottomTab: (t) => set(t === 'starred' ? { bottomTab: t } : { bottomTab: t, lastContentTab: t }),
       toggleStar: async (sub) => {
         const clean = sub.toLowerCase().replace(/^r\//, '').trim();
         const cur = get().starred;
@@ -90,6 +92,7 @@ export const useAppStore = create<AppStore>()(
         sort: state.sort,
         timePeriod: state.timePeriod,
         bottomTab: state.bottomTab,
+        lastContentTab: state.lastContentTab,
         starred: state.starred,
         lastPositions: state.lastPositions,
         muted: state.muted,

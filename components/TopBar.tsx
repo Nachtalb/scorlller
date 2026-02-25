@@ -54,7 +54,7 @@ export default function TopBar() {
       setCurrentSub(inputValue);
       setError('');
       setValidation('valid');
-      setBottomTab('reel');           // ← jumps to Reel automatically
+      setBottomTab(useAppStore.getState().lastContentTab);
     } else {
       setError(`r/${clean} doesn't exist`);
       setValidation('invalid');
