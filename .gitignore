@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/react,node,windows,linux,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=react,node,windows,linux,visualstudiocode
+# Created by https://www.toptal.com/developers/gitignore/api/windows,node,linux
+# Edit at https://www.toptal.com/developers/gitignore?templates=windows,node,linux
 
 ### Linux ###
 *~
@@ -156,38 +156,6 @@ dist
 # SvelteKit build / generate output
 .svelte-kit
 
-### react ###
-.DS_*
-**/*.backup.*
-**/*.back.*
-
-node_modules
-
-*.sublime*
-
-psd
-thumb
-sketch
-
-### VisualStudioCode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
-
-# Local History for Visual Studio Code
-.history/
-
-# Built Visual Studio Code Extensions
-*.vsix
-
-### VisualStudioCode Patch ###
-# Ignore all local history of files
-.history
-.ionide
-
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
@@ -214,12 +182,8 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/react,node,windows,linux,visualstudiocode
-# Local media cache (docker bind mount)
-media_cache/
+# End of https://www.toptal.com/developers/gitignore/api/windows,node,linux
 
-# Claude Code
+### Project ###
 .claude/
-
-# Vite build output
-dist/
+media_cache/
