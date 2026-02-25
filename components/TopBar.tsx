@@ -71,6 +71,7 @@ export default function TopBar() {
       <div className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 px-4 py-3 flex items-center gap-3" suppressHydrationWarning>
         <div className="relative flex-1">
           <input
+            id="subreddit-input"
             type="text"
             value={mounted ? inputValue : currentSub}
             onChange={e => setInputValue(e.target.value)}
