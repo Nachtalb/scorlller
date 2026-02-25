@@ -21,6 +21,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     dragFree: false,
     containScroll: 'trimSnaps',
     inViewThreshold: 0.7,
+    startIndex: currentIndex,
   });
 
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -88,13 +89,6 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     emblaApi.on('select', handleSelect);
     return () => { emblaApi.off('select', handleSelect); };
   }, [emblaApi, handleSelect]);
-
-  useEffect(() => {
-    const stored = useAppStore.getState().lastPositions[currentSub];
-    if (stored?.index && emblaApi && posts.length > stored.index) {
-      setTimeout(() => emblaApi.scrollTo(stored.index, true), 100);
-    }
-  }, [emblaApi, posts.length, currentSub]);
 
   // Mouse wheel navigation
   useEffect(() => {
