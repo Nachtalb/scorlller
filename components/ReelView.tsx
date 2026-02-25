@@ -161,6 +161,28 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     }
   };
 
+  // Keyboard navigation: ↑/↓, j/k, Ctrl+S / d for download
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowDown' || e.key === 'j') {
+        e.preventDefault();
+        emblaApi?.scrollNext();
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
+        e.preventDefault();
+        emblaApi?.scrollPrev();
+      } else if ((e.ctrlKey && e.key === 's') || (!e.ctrlKey && !e.metaKey && e.key === 'd')) {
+        e.preventDefault();
+        const post = posts[currentIndex];
+        if (post) handleSave(post);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [emblaApi, posts, currentIndex, handleSave]);
+
   const handleShare = async (post: MediaPost) => {
     const url = `https://reddit.com/r/${post.subreddit}/comments/${post.id}`;
     if (navigator.share) await navigator.share({ title: post.title, url });
