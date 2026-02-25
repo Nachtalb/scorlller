@@ -18,6 +18,7 @@ interface AppStore {
   bottomTab: BottomTab;
   starred: string[];
   lastPositions: Record<string, LastPosition>;
+  muted: boolean;
 
   setCurrentSub: (sub: string) => void;
   setSort: (s: SortType, p?: TimePeriod) => void;
@@ -27,6 +28,7 @@ interface AppStore {
   updateLastPosition: (sub: string, idx: number, aft: string | null) => void;
   resetPosition: (sub: string) => void;
   initStarred: () => Promise<void>;
+  setMuted: (m: boolean) => void;
 }
 
 /** true once Zustand has rehydrated state from localStorage */
@@ -50,6 +52,7 @@ export const useAppStore = create<AppStore>()(
       bottomTab: 'reel',
       starred: [],
       lastPositions: {},
+      muted: false,
 
       setCurrentSub: (sub) => {
         const clean = sub.toLowerCase().replace(/^r\//, '').trim();
@@ -77,6 +80,7 @@ export const useAppStore = create<AppStore>()(
         const saved = await getStarred();
         set({ starred: saved });
       },
+      setMuted: (m) => set({ muted: m }),
     }),
     {
       name: 'scrolller-storage',
@@ -88,6 +92,7 @@ export const useAppStore = create<AppStore>()(
         bottomTab: state.bottomTab,
         starred: state.starred,
         lastPositions: state.lastPositions,
+        muted: state.muted,
       }),
     }
   )

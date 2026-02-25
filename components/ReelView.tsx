@@ -12,6 +12,8 @@ interface Props {
   setCurrentIndex: (i: number) => void;
 }
 
+const WHEEL_THRESHOLD = 60; // px accumulated before snapping to next/prev
+
 export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props) {
   const [emblaRef, emblaApi] = EmblaCarousel({
     axis: 'y',
@@ -22,9 +24,10 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
   });
 
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [muted, setMuted] = useState(false);
+  const wheelAccum = useRef(0);
+  const wheelLocked = useRef(false);
   const [downloading, setDownloading] = useState<Set<string>>(new Set());
-  const { updateLastPosition, currentSub } = useAppStore();
+  const { updateLastPosition, currentSub, muted, setMuted } = useAppStore();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRedditPosts();
 
   const currentAfter = data?.pages[data.pages.length - 1]?.after || null;
@@ -36,12 +39,11 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     }
   }, [posts.length, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
 
-  // Force current video to play unmuted when index changes (fixes initial load + mute button)
+  // Play current video (always starts muted for autoplay; stored muted pref applied on first scroll)
   useEffect(() => {
     const v = videoRefs.current[currentIndex];
     if (v) {
-      v.muted = false;
-      setMuted(false);
+      v.muted = true; // start muted so browser allows autoplay
       v.play().catch(() => {});
     }
   }, [currentIndex]);
@@ -55,8 +57,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     videoRefs.current.forEach((v, i) => {
       if (!v) return;
       if (i === idx) {
-        v.muted = false;
-        setMuted(false);
+        v.muted = muted; // apply stored preference on each slide change
         v.play().catch(() => {});
       } else {
         v.pause();
@@ -66,15 +67,12 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     if (idx > posts.length - 5 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [emblaApi, setCurrentIndex, updateLastPosition, currentSub, currentAfter, posts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [emblaApi, setCurrentIndex, updateLastPosition, currentSub, currentAfter, muted, posts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Exact useEffect pattern that worked for you
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on('select', handleSelect);
-    return () => {
-      emblaApi.off('select', handleSelect);
-    };
+    return () => { emblaApi.off('select', handleSelect); };
   }, [emblaApi, handleSelect]);
 
   useEffect(() => {
@@ -84,36 +82,57 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     }
   }, [emblaApi, posts.length, currentSub]);
 
+  // Mouse wheel navigation
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (wheelLocked.current) return;
+
+      wheelAccum.current += e.deltaY;
+
+      if (Math.abs(wheelAccum.current) >= WHEEL_THRESHOLD) {
+        wheelLocked.current = true;
+        wheelAccum.current = 0;
+        if (e.deltaY > 0) emblaApi.scrollNext();
+        else emblaApi.scrollPrev();
+        // unlock after animation settles
+        setTimeout(() => { wheelLocked.current = false; }, 600);
+      }
+    };
+
+    const node = emblaApi.rootNode();
+    node.addEventListener('wheel', onWheel, { passive: false });
+    return () => node.removeEventListener('wheel', onWheel);
+  }, [emblaApi]);
+
   const toggleMute = (idx: number) => {
     const v = videoRefs.current[idx];
     if (v) {
-      v.muted = !v.muted;
-      setMuted(v.muted);
+      const next = !v.muted;
+      v.muted = next;
+      setMuted(next);
     }
   };
 
   const handleSave = async (post: MediaPost) => {
     if (downloading.has(post.id)) return;
     setDownloading(prev => new Set(prev).add(post.id));
-
     try {
       const response = await fetch(post.src, { cache: 'no-store' });
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
       let ext = post.type === 'video' ? 'mp4' : 'jpg';
       if (post.type === 'image') {
         const match = post.src.match(/\.(\w+)(?:\?|$)/i);
         if (match) ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
       }
-
       const a = document.createElement('a');
       a.href = url;
       a.download = `${post.id}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch {
       const a = document.createElement('a');
@@ -123,11 +142,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
       a.click();
       document.body.removeChild(a);
     } finally {
-      setDownloading(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(post.id);
-        return newSet;
-      });
+      setDownloading(prev => { const s = new Set(prev); s.delete(post.id); return s; });
     }
   };
 
@@ -161,6 +176,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
       <div className="embla__container flex flex-col h-full">
         {posts.map((post, idx) => {
           const isDownloading = downloading.has(post.id);
+          const postUrl = `https://reddit.com/r/${post.subreddit}/comments/${post.id}`;
           return (
             <div
               key={post.id}
@@ -174,6 +190,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                     className="max-h-full max-w-full object-contain"
                     loop
                     playsInline
+                    muted
                     onClick={() => toggleMute(idx)}
                   />
                 ) : (
@@ -189,13 +206,41 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
               <div className="absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-20 pb-24 px-6">
                 <div className="flex justify-between items-end gap-6">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-zinc-400">r/{post.subreddit} • u/{post.author}</div>
-                    <div className="font-medium leading-tight text-lg line-clamp-2 mt-1">{post.title}</div>
+                    <div className="text-sm text-zinc-400">
+                      <a
+                        href={`https://reddit.com/r/${post.subreddit}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-zinc-200 transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        r/{post.subreddit}
+                      </a>
+                      {' • '}
+                      <a
+                        href={`https://reddit.com/u/${post.author}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-zinc-200 transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        u/{post.author}
+                      </a>
+                    </div>
+                    <a
+                      href={postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium leading-tight text-lg line-clamp-2 mt-1 hover:text-zinc-300 transition-colors block"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {post.title}
+                    </a>
                   </div>
 
                   <div className="flex flex-col gap-6 text-3xl">
-                    <button 
-                      onClick={() => handleSave(post)} 
+                    <button
+                      onClick={() => handleSave(post)}
                       disabled={isDownloading}
                       className="transition-all disabled:opacity-60"
                     >
