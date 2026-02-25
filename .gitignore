@@ -215,3 +215,9 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/react,node,windows,linux,visualstudiocode
+# Local media cache (docker bind mount)
+media_cache/
+
+# Claude Code
+.claude/
+next-env.d.ts
