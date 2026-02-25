@@ -132,15 +132,22 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
   const handleSave = async (post: MediaPost) => {
     if (downloading.has(post.id)) return;
     setDownloading(prev => new Set(prev).add(post.id));
+
+    let ext = post.type === 'video' ? 'mp4' : 'jpg';
+    if (post.type === 'image') {
+      const match = post.src.match(/\.(\w+)(?:\?|$)/i);
+      if (match) ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
+    }
+
+    // Route through server proxy so the download is same-origin
+    // (cross-origin fetch + blob URL is the only reliable way to trigger a real download)
+    const proxySrc = post.src.startsWith('/') ? post.src : `/api/download?url=${encodeURIComponent(post.src)}`;
+
     try {
-      const response = await fetch(post.src, { cache: 'no-store' });
+      const response = await fetch(proxySrc, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`${response.status}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      let ext = post.type === 'video' ? 'mp4' : 'jpg';
-      if (post.type === 'image') {
-        const match = post.src.match(/\.(\w+)(?:\?|$)/i);
-        if (match) ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
-      }
       const a = document.createElement('a');
       a.href = url;
       a.download = `${post.id}.${ext}`;
@@ -149,12 +156,8 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch {
-      const a = document.createElement('a');
-      a.href = post.src + (post.src.includes('?') ? '&' : '?') + 'download=1';
-      a.download = `${post.id}.${post.type === 'video' ? 'mp4' : 'jpg'}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Last resort: open in new tab so user can long-press save
+      window.open(proxySrc, '_blank');
     } finally {
       setDownloading(prev => { const s = new Set(prev); s.delete(post.id); return s; });
     }
