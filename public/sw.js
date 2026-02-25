@@ -99,18 +99,17 @@ self.addEventListener('fetch', (e) => {
       caches.open(MEDIA_CACHE).then(async c => {
         const hit = await c.match(e.request);
         if (hit) return hit;
-        // preview.redd.it has no CORS → opaque response (works for display)
-        const mode = parsed.hostname === 'preview.redd.it' ? 'no-cors' : 'cors';
         try {
-          const res = await fetch(e.request, { mode });
-          // opaque responses have status 0 but are still usable
+          // Don't modify the request mode — let the browser use its natural mode
+          // for <img>/<video> elements (avoids CORS conflicts)
+          const res = await fetch(e.request);
           if (res.ok || res.type === 'opaque') {
             c.put(e.request, res.clone());
             trimMediaCache();
           }
           return res;
         } catch {
-          return hit || new Response(null, { status: 503 });
+          return new Response(null, { status: 503 });
         }
       })
     );
