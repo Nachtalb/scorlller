@@ -41,9 +41,10 @@ const getMediaSrc = (p: any): {type: 'image' | 'video'; src: string} => {
     }
   }
 
-  // 2. Reddit video (v.redd.it)
-  if (p.is_video && p.media?.reddit_video?.fallback_url) {
-    return { type: 'video', src: p.media.reddit_video.fallback_url };
+  // 2. Reddit video (v.redd.it) — check both media and secure_media; is_video flag is unreliable on cross-posts
+  const redditVideo = p.media?.reddit_video || p.secure_media?.reddit_video;
+  if (redditVideo?.fallback_url) {
+    return { type: 'video', src: redditVideo.fallback_url };
   }
 
   // 3. Prefer MP4 variant for "GIF" posts (huge improvement)
@@ -52,7 +53,13 @@ const getMediaSrc = (p: any): {type: 'image' | 'video'; src: string} => {
     return { type: 'video', src: mp4Variant.replace(/&amp;/g, '&') };
   }
 
-  // 4. Fallback to image (real GIFs or static)
+  // 4. Bare v.redd.it URL with no media object (cross-posts) — construct DASH fallback directly
+  if ((p.url || '').includes('v.redd.it')) {
+    const id = (p.url as string).split('/').filter(Boolean).pop();
+    return { type: 'video', src: `https://v.redd.it/${id}/DASH_720.mp4?source=fallback` };
+  }
+
+  // 5. Fallback to image (real GIFs or static)
   return {
     type: 'image',
     src: p.url || p.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&') || ''
