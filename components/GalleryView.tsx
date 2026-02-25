@@ -3,13 +3,14 @@
 import { useAppStore } from '@/stores/useAppStore';
 import { useRedditPosts } from '@/hooks/useRedditPosts';
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
 export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) => void }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRedditPosts();
   const posts = data?.pages.flatMap(p => p.posts) || [];
   const { currentSub } = useAppStore();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Auto-load more until we have at least one media post
   useEffect(() => {
@@ -17,6 +18,22 @@ export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) 
       fetchNextPage();
     }
   }, [posts.length, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
+
+  // Infinite scroll: load next page when sentinel enters the viewport
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading || (posts.length === 0 && isFetchingNextPage)) {
     return (
@@ -79,15 +96,12 @@ export default function GalleryView({ onOpenReel }: { onOpenReel: (idx: number) 
         ))}
       </div>
 
-      {hasNextPage && (
-        <button
-          onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="block mx-auto mt-8 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm disabled:opacity-50"
-        >
-          {isFetchingNextPage ? 'Loading...' : 'Load more'}
-        </button>
-      )}
+      <div ref={sentinelRef} className="flex justify-center mt-8 pb-4">
+        {isFetchingNextPage && <Loader2 size={24} className="animate-spin text-zinc-400" />}
+        {!hasNextPage && posts.length > 0 && (
+          <span className="text-zinc-600 text-sm">No more posts</span>
+        )}
+      </div>
     </div>
   );
 }
