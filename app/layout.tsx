@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Providers from './providers';
+import PwaInstallPrompt from '@/components/PwaInstallPrompt';
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 export const metadata: Metadata = {
   title: 'Scrolller',
@@ -14,6 +16,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className="bg-zinc-950 text-white overflow-hidden">
         <Providers>{children}</Providers>
+        <ServiceWorkerRegistrar />
+        <PwaInstallPrompt />
       </body>
     </html>
   );
