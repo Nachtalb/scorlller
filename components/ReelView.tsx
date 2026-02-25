@@ -39,11 +39,11 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
     }
   }, [posts.length, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
 
-  // Play current video (always starts muted for autoplay; stored muted pref applied on first scroll)
+  // Play current video, respecting stored mute preference
   useEffect(() => {
     const v = videoRefs.current[currentIndex];
     if (v) {
-      v.muted = true; // start muted so browser allows autoplay
+      v.muted = useAppStore.getState().muted;
       v.play().catch(() => {});
     }
   }, [currentIndex]);
@@ -190,6 +190,7 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
                     className="max-h-full max-w-full object-contain"
                     loop
                     playsInline
+                    autoPlay
                     muted
                     onClick={() => toggleMute(idx)}
                   />
@@ -240,15 +241,16 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
 
                   <div className="flex flex-col gap-6 text-3xl">
                     <button
+                      title="Download"
                       onClick={() => handleSave(post)}
                       disabled={isDownloading}
                       className="transition-all disabled:opacity-60"
                     >
                       {isDownloading ? <Loader2 size={28} className="animate-spin" /> : <Download size={28} />}
                     </button>
-                    <button onClick={() => handleShare(post)}><Share2 size={28} /></button>
+                    <button title="Share" onClick={() => handleShare(post)}><Share2 size={28} /></button>
                     {post.type === 'video' && (
-                      <button onClick={() => toggleMute(idx)}>
+                      <button title={idx === currentIndex && muted ? 'Unmute' : 'Mute'} onClick={() => toggleMute(idx)}>
                         {idx === currentIndex && muted ? <VolumeX size={28} /> : <Volume2 size={28} />}
                       </button>
                     )}
