@@ -163,10 +163,10 @@ export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props
 
       if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
-        emblaApi?.scrollNext();
+        emblaApi?.scrollPrev();
       } else if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
-        emblaApi?.scrollPrev();
+        emblaApi?.scrollNext();
       } else if ((e.ctrlKey && e.key === 's') || (!e.ctrlKey && !e.metaKey && e.key === 'd')) {
         e.preventDefault();
         const post = posts[currentIndex];
