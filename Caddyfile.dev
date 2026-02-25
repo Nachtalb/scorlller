@@ -5,22 +5,33 @@
 	cache {
 		ttl 24h
 		stale 1h
-		nuts {
-			path ./caddy-cache-dev
-		}
 	}
 }
 
-:3000 {
+:{$PORT:3000} {
+
+	@options method OPTIONS
+	handle @options {
+		header Access-Control-Allow-Origin  "*"
+		header Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+		header Access-Control-Max-Age       "86400"
+		respond 204
+	}
 
 	handle /proxy/redgifs/* {
+		uri strip_prefix /proxy/redgifs
 		cache
 		reverse_proxy https://media.redgifs.com {
-			header_up Host       "media.redgifs.com"
-			header_up User-Agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-			header_up Referer    "https://www.redgifs.com/"
-			header_up Origin     "https://www.redgifs.com"
+			header_up Host            "media.redgifs.com"
+			header_up User-Agent      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+			header_up Referer         "https://www.redgifs.com/"
+			header_up Origin          "https://www.redgifs.com"
 			header_up -Cookie
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-Ip
+			header_up -Via
 			header_down Access-Control-Allow-Origin   "*"
 			header_down Access-Control-Allow-Methods  "GET, HEAD, OPTIONS"
 			header_down Access-Control-Expose-Headers "Content-Length, Content-Range, Accept-Ranges"
@@ -33,6 +44,11 @@
 		reverse_proxy https://preview.redd.it {
 			header_up Host "preview.redd.it"
 			header_up -Cookie
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-Ip
+			header_up -Via
 			header_down Access-Control-Allow-Origin  "*"
 			header_down Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
 			header_down -Set-Cookie
@@ -44,18 +60,15 @@
 		reverse_proxy https://external-preview.redd.it {
 			header_up Host "external-preview.redd.it"
 			header_up -Cookie
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-Ip
+			header_up -Via
 			header_down Access-Control-Allow-Origin  "*"
 			header_down Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
 			header_down -Set-Cookie
 		}
-	}
-
-	@options method OPTIONS
-	handle @options {
-		header Access-Control-Allow-Origin  "*"
-		header Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
-		header Access-Control-Max-Age       "86400"
-		respond 204
 	}
 
 	# Dev: forward everything else to Vite dev server (HMR WebSocket passes through)
