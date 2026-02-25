@@ -1,0 +1,219 @@
+'use client';
+
+import { useEffect, useRef, useCallback, useState } from 'react';
+import EmblaCarousel from 'embla-carousel-react';
+import { useAppStore } from '@/stores/useAppStore';
+import { useRedditPosts, MediaPost } from '@/hooks/useRedditPosts';
+import { Download, Share2, Volume2, VolumeX, Loader2, SearchX } from 'lucide-react';
+
+interface Props {
+  posts: MediaPost[];
+  currentIndex: number;
+  setCurrentIndex: (i: number) => void;
+}
+
+export default function ReelView({ posts, currentIndex, setCurrentIndex }: Props) {
+  const [emblaRef, emblaApi] = EmblaCarousel({
+    axis: 'y',
+    loop: false,
+    dragFree: false,
+    containScroll: 'trimSnaps',
+    inViewThreshold: 0.7,
+  });
+
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const [muted, setMuted] = useState(false);
+  const [downloading, setDownloading] = useState<Set<string>>(new Set());
+  const { updateLastPosition, currentSub } = useAppStore();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRedditPosts();
+
+  const currentAfter = data?.pages[data.pages.length - 1]?.after || null;
+
+  // Auto-load first page when opening Reel
+  useEffect(() => {
+    if (posts.length === 0 && hasNextPage && !isFetchingNextPage && !isLoading) {
+      fetchNextPage();
+    }
+  }, [posts.length, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
+
+  // Force current video to play unmuted when index changes (fixes initial load + mute button)
+  useEffect(() => {
+    const v = videoRefs.current[currentIndex];
+    if (v) {
+      v.muted = false;
+      setMuted(false);
+      v.play().catch(() => {});
+    }
+  }, [currentIndex]);
+
+  const handleSelect = useCallback(() => {
+    if (!emblaApi) return;
+    const idx = emblaApi.selectedScrollSnap();
+    setCurrentIndex(idx);
+    updateLastPosition(currentSub, idx, currentAfter);
+
+    videoRefs.current.forEach((v, i) => {
+      if (!v) return;
+      if (i === idx) {
+        v.muted = false;
+        setMuted(false);
+        v.play().catch(() => {});
+      } else {
+        v.pause();
+      }
+    });
+
+    if (idx > posts.length - 5 && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [emblaApi, setCurrentIndex, updateLastPosition, currentSub, currentAfter, posts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Exact useEffect pattern that worked for you
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', handleSelect);
+    return () => {
+      emblaApi.off('select', handleSelect);
+    };
+  }, [emblaApi, handleSelect]);
+
+  useEffect(() => {
+    const stored = useAppStore.getState().lastPositions[currentSub];
+    if (stored?.index && emblaApi && posts.length > stored.index) {
+      setTimeout(() => emblaApi.scrollTo(stored.index, true), 100);
+    }
+  }, [emblaApi, posts.length, currentSub]);
+
+  const toggleMute = (idx: number) => {
+    const v = videoRefs.current[idx];
+    if (v) {
+      v.muted = !v.muted;
+      setMuted(v.muted);
+    }
+  };
+
+  const handleSave = async (post: MediaPost) => {
+    if (downloading.has(post.id)) return;
+    setDownloading(prev => new Set(prev).add(post.id));
+
+    try {
+      const response = await fetch(post.src, { cache: 'no-store' });
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      let ext = post.type === 'video' ? 'mp4' : 'jpg';
+      if (post.type === 'image') {
+        const match = post.src.match(/\.(\w+)(?:\?|$)/i);
+        if (match) ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
+      }
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${post.id}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch {
+      const a = document.createElement('a');
+      a.href = post.src + (post.src.includes('?') ? '&' : '?') + 'download=1';
+      a.download = `${post.id}.${post.type === 'video' ? 'mp4' : 'jpg'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setDownloading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(post.id);
+        return newSet;
+      });
+    }
+  };
+
+  const handleShare = async (post: MediaPost) => {
+    const url = `https://reddit.com/r/${post.subreddit}/comments/${post.id}`;
+    if (navigator.share) await navigator.share({ title: post.title, url });
+    else navigator.clipboard.writeText(url);
+  };
+
+  if (isLoading || (posts.length === 0 && isFetchingNextPage)) {
+    return (
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center gap-4">
+        <Loader2 size={36} className="animate-spin text-zinc-500" />
+        <span className="text-zinc-500 text-sm">Loading r/{currentSub}...</span>
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <SearchX size={48} className="text-zinc-600" />
+        <div className="text-xl font-medium text-zinc-300">No media found in r/{currentSub}</div>
+        <div className="text-zinc-500 text-sm">Try another subreddit or change sort</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen w-full overflow-hidden bg-black" ref={emblaRef}>
+      <div className="embla__container flex flex-col h-full">
+        {posts.map((post, idx) => {
+          const isDownloading = downloading.has(post.id);
+          return (
+            <div
+              key={post.id}
+              className="flex-shrink-0 h-screen w-full relative bg-black flex items-center justify-center overflow-hidden"
+            >
+              <div className="relative w-full h-full flex items-center justify-center">
+                {post.type === 'video' ? (
+                  <video
+                    ref={el => { videoRefs.current[idx] = el; }}
+                    src={post.src}
+                    className="max-h-full max-w-full object-contain"
+                    loop
+                    playsInline
+                    onClick={() => toggleMute(idx)}
+                  />
+                ) : (
+                  <img
+                    src={post.src}
+                    alt={post.title}
+                    className="max-h-full max-w-full object-contain"
+                    draggable={false}
+                  />
+                )}
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-20 pb-24 px-6">
+                <div className="flex justify-between items-end gap-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-zinc-400">r/{post.subreddit} • u/{post.author}</div>
+                    <div className="font-medium leading-tight text-lg line-clamp-2 mt-1">{post.title}</div>
+                  </div>
+
+                  <div className="flex flex-col gap-6 text-3xl">
+                    <button 
+                      onClick={() => handleSave(post)} 
+                      disabled={isDownloading}
+                      className="transition-all disabled:opacity-60"
+                    >
+                      {isDownloading ? <Loader2 size={28} className="animate-spin" /> : <Download size={28} />}
+                    </button>
+                    <button onClick={() => handleShare(post)}><Share2 size={28} /></button>
+                    {post.type === 'video' && (
+                      <button onClick={() => toggleMute(idx)}>
+                        {idx === currentIndex && muted ? <VolumeX size={28} /> : <Volume2 size={28} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
