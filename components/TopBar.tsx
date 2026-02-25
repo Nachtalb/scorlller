@@ -104,6 +104,12 @@ export default function TopBar() {
             {['day', 'week', 'month', 'year', 'all'].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
+        <span
+          title="Build version"
+          className="text-[10px] text-zinc-700 font-mono select-all shrink-0"
+        >
+          {process.env.NEXT_PUBLIC_COMMIT_HASH}
+        </span>
       </div>
 
       {error && (
