@@ -20,23 +20,27 @@ export interface MediaPost {
   src: string;
 }
 
-const redgifsIdFromUrl = (url: string): string | null => {
-  const m = url.match(/redgifs\.com\/(?:watch|ifr)\/([a-zA-Z]+)/i);
-  return m ? m[1] : null;
-};
-
 const isMediaPost = (p: any): boolean => {
   const u = p.url || '';
+  const isRedgifs = p.media?.type === 'redgifs.com' || p.secure_media?.type === 'redgifs.com';
   return !!(p.is_video || p.post_hint === 'image' || p.post_hint === 'hosted:video' ||
     /\.(jpg|jpeg|png|gif|webp|mp4|webm)$/i.test(u) || u.includes('v.redd.it') || u.includes('i.redd.it') ||
-    redgifsIdFromUrl(u));
+    isRedgifs);
 };
 
 const getMediaSrc = (p: any): {type: 'image' | 'video'; src: string} => {
-  // 1. Redgifs embed
-  const rgId = redgifsIdFromUrl(p.url || '');
-  if (rgId) {
-    return { type: 'video', src: `/api/redgifs/${rgId}` };
+  // 1. Redgifs — derive MP4 URL from oEmbed thumbnail (already in Reddit post data, no extra API call)
+  // thumbnail_url: https://media.redgifs.com/WiryGiddyWaterbuck-poster.jpg
+  // video url:     https://media.redgifs.com/WiryGiddyWaterbuck.mp4
+  const rgOembed = (p.secure_media?.type === 'redgifs.com' && p.secure_media?.oembed)
+                || (p.media?.type === 'redgifs.com' && p.media?.oembed);
+  if (rgOembed?.thumbnail_url) {
+    const videoUrl = (rgOembed.thumbnail_url as string)
+      .replace(/-(?:poster|mobile|large|small)\.[a-z]+$/i, '.mp4')
+      .replace(/\.[a-z]+$/i, '.mp4');
+    if (videoUrl.endsWith('.mp4')) {
+      return { type: 'video', src: videoUrl };
+    }
   }
 
   // 2. Reddit video (v.redd.it)
