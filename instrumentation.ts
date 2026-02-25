@@ -31,19 +31,17 @@ export async function register() {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      log.error(`Reddit API check failed — HTTP ${res.status}`);
-      if (body) log.error('Response:', body.slice(0, 200));
-      log.error('This IP may be blocked by Reddit. Requests will fail at runtime.');
-      process.exit(1);
+      log.warn(`Reddit API check failed — HTTP ${res.status}`);
+      if (body) log.warn('Response:', body.slice(0, 200));
+      log.warn('This IP may be blocked by Reddit. Requests will likely fail at runtime.');
+    } else {
+      const data = await res.json();
+      const sub = data?.data?.children?.[0]?.data?.subreddit ?? '?';
+      log.ok(`Reddit API reachable — ${res.status} in ${Date.now() - t}ms (r/${sub})`);
     }
-
-    const data = await res.json();
-    const sub = data?.data?.children?.[0]?.data?.subreddit ?? '?';
-    log.ok(`Reddit API reachable — ${res.status} in ${Date.now() - t}ms (r/${sub})`);
   } catch (e: any) {
-    log.error('Reddit API check failed —', e?.message ?? e);
-    log.error('Network error or timeout. Check connectivity.');
-    process.exit(1);
+    log.warn('Reddit API check failed —', e?.message ?? e);
+    log.warn('Network error or timeout — starting anyway, requests may fail.');
   }
 
   log.info('────────────────────────────────────────');
